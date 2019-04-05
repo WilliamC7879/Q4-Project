@@ -20,7 +20,7 @@ Comfy
 - Blankets
 - Pillows
 
-=======
+## joe wants this stuff
 
 - lettuce
 - pickles
@@ -29,9 +29,8 @@ Comfy
 - mercenaries
 - helicopter and helipad for cool bailout scene
 
-=======
 
-# this is Tiph and here are the things I want
+## this is Tiph and here are the things I want
 
 #salmon
 #steak
