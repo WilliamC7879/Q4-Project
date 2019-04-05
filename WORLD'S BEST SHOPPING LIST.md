@@ -1,5 +1,6 @@
 # Let's make a shopping list!
 
+
 ## William's items
 Tech
 - AirPower
@@ -18,3 +19,20 @@ Comfy
 - Futon
 - Blankets
 - Pillows
+
+=======
+
+- lettuce
+- pickles
+- onions
+- tesla
+- mercenaries
+- helicopter and helipad for cool bailout scene
+
+=======
+
+# this is Tiph and here are the things I want
+
+#salmon
+#steak
+#eggs
