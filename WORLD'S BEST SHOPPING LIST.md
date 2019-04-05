@@ -13,3 +13,8 @@ Snaccs
 - Sprite
 - Barbeque chips
 
+Comfy
+- Bean bags
+- Futon
+- Blankets
+- Pillows
