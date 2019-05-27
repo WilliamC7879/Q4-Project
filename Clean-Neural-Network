@@ -1,0 +1,219 @@
+# NOTE: this is not exactly working. It kinda works, but not really.
+
+import pygame
+import random
+import sklearn
+import numpy as np
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import normalize
+import pickle
+
+# INIT
+pygame.init()
+win = pygame.display.set_mode((500,700))
+pygame.display.set_caption("REWARD JUMP")
+
+# VARIABLES
+radius = 20
+y = 800 - radius
+ySpeed = 0
+points = 0
+font = pygame.font.SysFont('comicsans', 30, True)
+
+run = True
+
+framesSinceLastJump = -1
+
+def jump():
+    global ySpeed
+    global points
+    global framesSinceLastJump
+    
+    ySpeed += int(ySpeed + 30)
+    pointsGained = 0
+
+    if (y < 700 and y > 660):
+        pointsGained += 3
+    if (y < 660 and y > 580):
+        pointsGained += 2
+    if (y < 580 and y > 460):
+        pointsGained += 1
+    if(y < 460 ):
+        pointsGained -= 1
+    if (y == 700 - radius):
+        pointsGained = 3
+    
+    points += pointsGained
+    print("Y: " + str(y) + "points:" + str(pointsGained))
+    
+    framesSinceLastJump = 0
+    return
+
+def ensureBallIsWithinScreen():
+    global y
+    global ySpeed
+
+    if (y > 700 - radius):
+        ySpeed = 0
+        y = 700 - radius
+
+    if (y < 0 + radius):
+        ySpeed = 0
+        y = 1 + radius
+    return
+
+def mainGameLoopUpdate():
+    global y 
+    global ySpeed
+    global framesSinceLastJump
+
+    if(framesSinceLastJump > -1):
+        framesSinceLastJump += 1
+
+    ySpeed -= 1
+    y -= ySpeed
+    
+    pygame.display.update()
+
+    ensureBallIsWithinScreen()
+    return
+
+def mainGameLoopReset():
+    global points
+    global ySpeed
+    global y
+
+    points = 0
+    ySpeed = 0
+    y = 800 - radius
+
+def mainPygameDisplayLoopUpdate():
+    global run 
+    global points
+    
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                jump()
+                
+    pygame.draw.circle(win, (125, 125, 125), (250, 250), 500)
+    pygame.draw.rect(win, (225,0,0), (0,660,500,40))
+    pygame.draw.rect(win, (225,225,0),(0,580,500,80))
+    pygame.draw.rect(win,(0,225,0), (0,460,500,120))
+    pygame.draw.rect(win,(0,0,0), (0,0,500,460))
+    pygame.draw.circle(win, (125,0, 250),(250,y),radius)
+    text = font.render('POINTS: ' + str(points), 1, (255, 0, 0))
+    win.blit(text, (250 - (text.get_width()/2), 200))
+    return
+
+numberOfSessionsToTrain = 11
+numberOfFramesPerSession = 300
+stateData = np.zeros((numberOfSessionsToTrain * numberOfFramesPerSession, 4))
+pointsData = np.zeros((numberOfSessionsToTrain * numberOfFramesPerSession))
+
+framesSinceLastJump = -1
+
+for sessionNumber in range (0, numberOfSessionsToTrain):
+    sessionData = np.zeros((numberOfFramesPerSession, 4))
+    print("NEXT SESSION")
+    pygame.time.delay(1)
+
+    stopTraining = False
+
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_a:
+                stopTraining = True
+
+    if (stopTraining == True):
+        break
+
+
+    framesSinceLastJump = -1
+
+    jump()
+
+    for frameNumber in range (0, numberOfFramesPerSession):
+        mainGameLoopUpdate()
+        sessionData[frameNumber][0] = y
+        sessionData[frameNumber][1] = ySpeed
+        sessionData[frameNumber][2] = framesSinceLastJump
+
+        isJumping = random.randint(0,100) < 7
+        if (isJumping):
+            jump()
+
+        sessionData[frameNumber][3] = isJumping#framesSinceLastJump
+        #sessionData[frameNumber][3] = isJumping
+
+    for frameNumber in range (0, numberOfFramesPerSession):
+        stateData[(sessionNumber+1) * frameNumber] = sessionData[frameNumber]
+        pointsData[(sessionNumber+1) * frameNumber] = points
+
+    points = 0
+
+    
+X = stateData
+# X can't be over a 2D array so we need to reshape it
+#n1, n2, n3 = stateData.shape
+#print(n1)
+print(stateData)
+X = stateData
+print(X)
+Y = pointsData
+print(Y)
+listOfPossiblePoints = list(set(Y))
+print("SET: " + str(listOfPossiblePoints))
+clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(10, 4), random_state=1)
+
+print("SHAPE" + str(X.shape))
+
+print("DIE STATE DATAR:" + str(X))
+clf.fit(X, Y)     
+
+
+filename = 'finalized_model.sav'
+pickle.dump(clf, open(filename, 'wb'))
+loaded_model = pickle.load(open(filename, 'rb'))
+clf = loaded_model
+
+mainGameLoopReset()
+
+def runTrainedAIGameLogic(y, ySpeed, framesSinceLastJump):
+    skipThisFrame = random.randint(0,100) < 40
+    # we want to avoid AI getting in nasty cycles where input is the same
+    if(skipThisFrame):
+        return
+    global listOfPossiblePoints
+    global clf
+    input = np.array([y, ySpeed, framesSinceLastJump, True])
+    input = input.reshape(1, -1)
+    result = clf.predict_proba(input)
+    print("SET: " + str(listOfPossiblePoints))
+    print("INPUT" + str(input))
+    print("RESULT: " + str(result[0]))
+    newList = result[0]
+
+    sum = 0
+
+    for ele in range(0, len(newList)): 
+        sum = sum + newList[ele] * listOfPossiblePoints[ele]
+
+    if (sum > .5):
+        jump()
+
+    print ("SUM: " + str(sum))
+
+framesSinceLastJump = 0
+
+y = 800 - radius
+
+while run:
+    pygame.time.delay(25) #miliseconds
+    mainGameLoopUpdate()
+    mainPygameDisplayLoopUpdate()
+    runTrainedAIGameLogic(y, ySpeed, framesSinceLastJump)
+
+pygame.quit()
